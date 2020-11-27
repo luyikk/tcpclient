@@ -3,7 +3,6 @@ use tokio::net::{TcpStream, ToSocketAddrs};
 use std::io;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::io::{AsyncWriteExt, ErrorKind};
-use tokio::macros::support::Future;
 use aqueue::Actor;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -11,6 +10,7 @@ use std::net::Shutdown;
 use log::*;
 use std::error::Error;
 use aqueue::AError::{Other, StrErr};
+use std::future::Future;
 
 pub struct TcpClient {
     disconnect:bool,
