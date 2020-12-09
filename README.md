@@ -26,7 +26,7 @@ async fn main()->Result<(),Box<dyn Error>> {
     
     // connect echo server
     let client=
-        TcpClient::connect("127.0.0.1:1002", async move|client, mut reader| {
+        TcpClient::connect("127.0.0.1:1002", async move|_,client, mut reader| {
             // read i32 from target server
             while let Ok(len) = reader.read_i32_le().await {
                 // send i32 to target server
@@ -38,7 +38,7 @@ async fn main()->Result<(),Box<dyn Error>> {
             // if true and the current state is disconnected, it will be ignored.
             Ok(true)
 
-        }).await?;
+        },()).await?;
 
     // connect ok send i32 to target server
     let mut buff =BytesMut::new();

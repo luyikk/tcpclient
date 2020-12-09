@@ -19,7 +19,7 @@ pub struct TcpClient {
 
 
 impl TcpClient {
-    pub async fn connect<T:ToSocketAddrs,F:Future<Output=Result<bool,Box<dyn Error>>>+Send+'static>(addr:T, f:impl FnOnce(Arc<Actor<TcpClient>>,OwnedReadHalf)->F+Send+'static) ->io::Result<Arc<Actor<TcpClient>>>{
+    pub async fn connect<T:ToSocketAddrs,F:Future<Output=Result<bool,Box<dyn Error>>>+Send+'static,A:Send+'static>(addr:T, f:impl FnOnce(A,Arc<Actor<TcpClient>>,OwnedReadHalf)->F+Send+'static,token:A) ->io::Result<Arc<Actor<TcpClient>>>{
 
         let stream= TcpStream::connect(addr).await?;
         let target= stream.peer_addr()?;
@@ -33,7 +33,7 @@ impl TcpClient {
         tokio::spawn(async move{
             let disconnect_client=read_client.clone();
             let need_disconnect=
-                match f(read_client,reader).await{
+                match f(token,read_client,reader).await{
                     Ok(disconnect)=>{
                         disconnect
                     },
