@@ -1,6 +1,6 @@
 [package]
 name = "tcpclient"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["yi lu <luyikk@126.com>"]
 edition = "2018"
 license = "MIT/Apache-2.0"
@@ -13,4 +13,4 @@ description = "Asynchronous tcpclient based on aqueue actor."
 [dependencies]
 log="0.4"
 aqueue="0.2"
-tokio = { version = "0.3", features = ["full"] }
+tokio = { version = "1", features = ["full"] }

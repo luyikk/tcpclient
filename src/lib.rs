@@ -6,7 +6,6 @@ use tokio::io::{AsyncWriteExt, ErrorKind};
 use aqueue::Actor;
 use std::ops::Deref;
 use std::sync::Arc;
-use std::net::Shutdown;
 use log::*;
 use std::error::Error;
 use aqueue::AError::{Other, StrErr};
@@ -58,9 +57,9 @@ impl TcpClient {
         Ok(client)
     }
 
-    pub fn disconnect(&mut self)->io::Result<()>{
+    pub async fn disconnect(&mut self)->io::Result<()>{
         if !self.disconnect {
-            self.sender.as_ref().shutdown(Shutdown::Both)?;
+            self.sender.shutdown().await?;
             self.disconnect = true;
         }
         Ok(())
@@ -96,7 +95,7 @@ impl SocketClientTrait for Actor<TcpClient>{
 
     async fn disconnect(&self) ->Result<(),Box<dyn Error>> {
         self.inner_call(async move |inner| {
-            match inner.get_mut().disconnect() {
+            match inner.get_mut().disconnect().await {
                 Ok(_) => Ok(()),
                 Err(er) => Err(Other(er.into()))
             }
