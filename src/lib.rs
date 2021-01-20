@@ -3,7 +3,7 @@ use tokio::net::{TcpStream, ToSocketAddrs};
 use std::io;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::io::{AsyncWriteExt, ErrorKind};
-use aqueue::Actor;
+use aqueue::{Actor, AResult};
 use std::ops::Deref;
 use std::sync::Arc;
 use log::*;
@@ -78,28 +78,28 @@ impl TcpClient {
 
 #[aqueue::aqueue_trait]
 pub trait SocketClientTrait{
-    async fn send<T:Deref<Target=[u8]>+Send+Sync+'static>(&self,buff:T)->Result<usize,Box<dyn Error>>;
-    async fn disconnect(&self)->Result<(),Box<dyn Error>>;
+    async fn send<T:Deref<Target=[u8]>+Send+Sync+'static>(&self,buff:T)->AResult<usize>;
+    async fn disconnect(&self)->AResult<()>;
 }
 
 #[aqueue::aqueue_trait]
 impl SocketClientTrait for Actor<TcpClient>{
-    async fn send<T:Deref<Target=[u8]>+Send+Sync+'static>(&self, buff:T)->Result<usize,Box<dyn Error>>{
-        Ok(self.inner_call(async move |inner|{
+    async fn send<T:Deref<Target=[u8]>+Send+Sync+'static>(&self, buff:T)->AResult<usize>{
+        self.inner_call(async move |inner|{
             match inner.get_mut().send(&buff).await {
                 Ok(size)=>Ok(size),
                 Err(er)=>Err(Other(er.into()))
             }
-        }).await?)
+        }).await
     }
 
-    async fn disconnect(&self) ->Result<(),Box<dyn Error>> {
+    async fn disconnect(&self) ->AResult<()> {
         self.inner_call(async move |inner| {
             match inner.get_mut().disconnect().await {
                 Ok(_) => Ok(()),
                 Err(er) => Err(Other(er.into()))
             }
-        }).await?;
-        Ok(())
+        }).await
+
     }
 }
