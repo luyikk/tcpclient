@@ -18,6 +18,7 @@ pub struct TcpClient {
 
 
 impl TcpClient {
+    #[inline]
     pub async fn connect<T:ToSocketAddrs,F:Future<Output=Result<bool,Box<dyn Error>>>+Send+'static,A:Send+'static>(addr:T, f:impl FnOnce(A,Arc<Actor<TcpClient>>,OwnedReadHalf)->F+Send+'static,token:A) ->io::Result<Arc<Actor<TcpClient>>>{
 
         let stream= TcpStream::connect(addr).await?;
@@ -56,7 +57,7 @@ impl TcpClient {
         });
         Ok(client)
     }
-
+    #[inline]
     pub async fn disconnect(&mut self)->io::Result<()>{
         if !self.disconnect {
             self.sender.shutdown().await?;
@@ -64,7 +65,7 @@ impl TcpClient {
         }
         Ok(())
     }
-
+    #[inline]
     pub async fn send(&mut self, buff:&[u8])->io::Result<usize>{
         if !self.disconnect {
             self.sender.write(buff).await
@@ -84,6 +85,7 @@ pub trait SocketClientTrait{
 
 #[aqueue::aqueue_trait]
 impl SocketClientTrait for Actor<TcpClient>{
+    #[inline]
     async fn send<T:Deref<Target=[u8]>+Send+Sync+'static>(&self, buff:T)->AResult<usize>{
         self.inner_call(async move |inner|{
             match inner.get_mut().send(&buff).await {
@@ -92,7 +94,7 @@ impl SocketClientTrait for Actor<TcpClient>{
             }
         }).await
     }
-
+    #[inline]
     async fn disconnect(&self) ->AResult<()> {
         self.inner_call(async move |inner| {
             match inner.get_mut().disconnect().await {
