@@ -1,25 +1,23 @@
 #![feature(async_closure)]
 use tokio::net::{TcpStream, ToSocketAddrs};
-use std::io;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
-use tokio::io::{AsyncWriteExt, ErrorKind};
-use aqueue::{Actor, AResult};
+use tokio::io::AsyncWriteExt;
+use aqueue::Actor;
 use std::ops::Deref;
 use std::sync::Arc;
 use log::*;
 use std::error::Error;
-use aqueue::AError::{Other, StrErr};
 use std::future::Future;
+use anyhow::*;
 
 pub struct TcpClient {
     disconnect:bool,
     sender:OwnedWriteHalf
 }
 
-
 impl TcpClient {
     #[inline]
-    pub async fn connect<T:ToSocketAddrs,F:Future<Output=Result<bool,Box<dyn Error>>>+Send+'static,A:Send+'static>(addr:T, f:impl FnOnce(A,Arc<Actor<TcpClient>>,OwnedReadHalf)->F+Send+'static,token:A) ->io::Result<Arc<Actor<TcpClient>>>{
+    pub async fn connect<T:ToSocketAddrs,F:Future<Output=Result<bool,Box<dyn Error>>>+Send+'static,A:Send+'static>(addr:T, f:impl FnOnce(A,Arc<Actor<TcpClient>>,OwnedReadHalf)->F+Send+'static,token:A) ->Result<Arc<Actor<TcpClient>>>{
 
         let stream= TcpStream::connect(addr).await?;
         let target= stream.peer_addr()?;
@@ -58,7 +56,7 @@ impl TcpClient {
         Ok(client)
     }
     #[inline]
-    pub async fn disconnect(&mut self)->io::Result<()>{
+    pub async fn disconnect(&mut self)->Result<()>{
         if !self.disconnect {
             self.sender.shutdown().await?;
             self.disconnect = true;
@@ -66,41 +64,35 @@ impl TcpClient {
         Ok(())
     }
     #[inline]
-    pub async fn send(&mut self, buff:&[u8])->io::Result<usize>{
+    pub async fn send(&mut self, buff:&[u8])->Result<usize>{
         if !self.disconnect {
-            self.sender.write(buff).await
+            Ok(self.sender.write(buff).await?)
         }else{
-            Err(io::Error::new(ErrorKind::Other,StrErr("Send Error,Disconnect".into())))
+            bail!("Send Error,Disconnect")
         }
     }
 
 
 }
 
-#[aqueue::aqueue_trait]
+#[async_trait::async_trait]
 pub trait SocketClientTrait{
-    async fn send<T:Deref<Target=[u8]>+Send+Sync+'static>(&self,buff:T)->AResult<usize>;
-    async fn disconnect(&self)->AResult<()>;
+    async fn send<T:Deref<Target=[u8]>+Send+Sync+'static>(&self,buff:T)->Result<usize>;
+    async fn disconnect(&self)->Result<()>;
 }
 
-#[aqueue::aqueue_trait]
+#[async_trait::async_trait]
 impl SocketClientTrait for Actor<TcpClient>{
     #[inline]
-    async fn send<T:Deref<Target=[u8]>+Send+Sync+'static>(&self, buff:T)->AResult<usize>{
+    async fn send<T:Deref<Target=[u8]>+Send+Sync+'static>(&self, buff:T)->Result<usize>{
         self.inner_call(async move |inner|{
-            match inner.get_mut().send(&buff).await {
-                Ok(size)=>Ok(size),
-                Err(er)=>Err(Other(er.into()))
-            }
+             inner.get_mut().send(&buff).await
         }).await
     }
     #[inline]
-    async fn disconnect(&self) ->AResult<()> {
+    async fn disconnect(&self) ->Result<()> {
         self.inner_call(async move |inner| {
-            match inner.get_mut().disconnect().await {
-                Ok(_) => Ok(()),
-                Err(er) => Err(Other(er.into()))
-            }
+             inner.get_mut().disconnect().await
         }).await
 
     }
