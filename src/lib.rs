@@ -6,7 +6,6 @@ use aqueue::Actor;
 use std::ops::Deref;
 use std::sync::Arc;
 use log::*;
-use std::error::Error;
 use std::future::Future;
 use anyhow::*;
 
@@ -17,7 +16,7 @@ pub struct TcpClient {
 
 impl TcpClient {
     #[inline]
-    pub async fn connect<T:ToSocketAddrs,F:Future<Output=Result<bool,Box<dyn Error>>>+Send+'static,A:Send+'static>(addr:T, f:impl FnOnce(A,Arc<Actor<TcpClient>>,OwnedReadHalf)->F+Send+'static,token:A) ->Result<Arc<Actor<TcpClient>>>{
+    pub async fn connect<T:ToSocketAddrs,F:Future<Output=Result<bool>>+Send+'static,A:Send+'static>(addr:T, f:impl FnOnce(A,Arc<Actor<TcpClient>>,OwnedReadHalf)->F+Send+'static,token:A) ->Result<Arc<Actor<TcpClient>>>{
 
         let stream= TcpStream::connect(addr).await?;
         let target= stream.peer_addr()?;
