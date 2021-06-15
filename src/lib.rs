@@ -3,7 +3,6 @@ use tokio::net::{TcpStream, ToSocketAddrs};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::io::AsyncWriteExt;
 use aqueue::Actor;
-use std::ops::Deref;
 use std::sync::Arc;
 use log::*;
 use std::future::Future;
@@ -76,17 +75,19 @@ impl TcpClient {
 
 #[async_trait::async_trait]
 pub trait SocketClientTrait{
-    async fn send<T:Deref<Target=[u8]>+Send+Sync+'static>(&self,buff:T)->Result<usize>;
+    async fn send<'a>(&'a self,buff:&'a[u8])->Result<usize>;
     async fn disconnect(&self)->Result<()>;
 }
 
 #[async_trait::async_trait]
 impl SocketClientTrait for Actor<TcpClient>{
     #[inline]
-    async fn send<T:Deref<Target=[u8]>+Send+Sync+'static>(&self, buff:T)->Result<usize>{
-        self.inner_call(async move |inner|{
-             inner.get_mut().send(&buff).await
-        }).await
+    async fn send<'a>(&'a self,buff:&'a[u8])->Result<usize>{
+        unsafe {
+            self.inner_call_ref(async move |inner| {
+                inner.get_mut().send(buff).await
+            }).await
+        }
     }
     #[inline]
     async fn disconnect(&self) ->Result<()> {
