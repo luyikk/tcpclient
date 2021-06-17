@@ -21,12 +21,12 @@ impl TcpClient<TcpStream> {
         A: Send + 'static,
     >(
         addr: T,
-        f: impl FnOnce(A, Arc<Actor<TcpClient<TcpStream>>>, ReadHalf<TcpStream>) -> F + Send + 'static,
+        input: impl FnOnce(A, Arc<Actor<TcpClient<TcpStream>>>, ReadHalf<TcpStream>) -> F + Send + 'static,
         token: A,
     ) -> Result<Arc<Actor<TcpClient<TcpStream>>>> {
         let stream = TcpStream::connect(addr).await?;
         let target = stream.peer_addr()?;
-        Self::init(f, token, stream, target)
+        Self::init(input, token, stream, target)
     }
 }
 
@@ -42,14 +42,14 @@ where
         A: Send + 'static,
     >(
         addr: H,
-        f: impl FnOnce(A, Arc<Actor<TcpClient<T>>>, ReadHalf<T>) -> F + Send + 'static,
-        i: impl FnOnce(TcpStream) -> S + Send + 'static,
+        stream_init: impl FnOnce(TcpStream) -> S + Send + 'static,
+        input: impl FnOnce(A, Arc<Actor<TcpClient<T>>>, ReadHalf<T>) -> F + Send + 'static,
         token: A,
     ) -> Result<Arc<Actor<TcpClient<T>>>> {
         let stream = TcpStream::connect(addr).await?;
         let target = stream.peer_addr()?;
-        let stream = i(stream).await?;
-        Self::init(f, token, stream, target)
+        let stream = stream_init(stream).await?;
+        Self::init(input, token, stream, target)
     }
 
     #[inline]
