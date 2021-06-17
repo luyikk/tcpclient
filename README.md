@@ -1,7 +1,7 @@
 # Asynchronous tcpclient based on aqueue actor.
 
 ## DEMO URL:
-[https://github.com/luyikk/tcp_server/tree/master/examples][demo]
+[demo url][https://github.com/luyikk/tcp_server/tree/master/examples]
 
 ## examples echo:
 ```rust
@@ -46,4 +46,5 @@ async fn main()->Result<(),Box<dyn Error>> {
 }
 ```
 
-[demo]: https://github.com/luyikk/tcp_server/tree/master/examples
+
+[https://github.com/luyikk/tcp_server/tree/master/examples]: https://github.com/luyikk/tcp_server/tree/master/examples
