@@ -7,6 +7,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
 use tokio::net::{TcpStream, ToSocketAddrs};
+use std::ops::Deref;
 
 pub struct TcpClient<T> {
     disconnect: bool,
@@ -97,18 +98,18 @@ where
         Ok(())
     }
     #[inline]
-    pub async fn send<'a>(&'a mut self, buff: &'a [u8]) -> Result<usize> {
+    pub async fn send<B: Deref<Target = [u8]> + Send + Sync + 'static>(&mut self, buff: B) -> Result<usize> {
         if !self.disconnect {
-            Ok(self.sender.write(buff).await?)
+            Ok(self.sender.write(&buff).await?)
         } else {
             bail!("Send Error,Disconnect")
         }
     }
 
     #[inline]
-    pub async fn send_all<'a>(&'a mut self, buff: &'a [u8]) -> Result<()> {
+    async fn send_all<B: Deref<Target = [u8]> + Send + Sync + 'static>(&mut self, buff: B) -> Result<()>{
         if !self.disconnect {
-            Ok(self.sender.write_all(buff).await?)
+            Ok(self.sender.write_all(&buff).await?)
         } else {
             bail!("Send Error,Disconnect")
         }
@@ -126,8 +127,8 @@ where
 
 #[async_trait::async_trait]
 pub trait SocketClientTrait {
-    async fn send<'a>(&'a self, buff: &'a [u8]) -> Result<usize>;
-    async fn send_all<'a>(&'a self, buff: &'a [u8]) -> Result<()>;
+    async fn send<B: Deref<Target = [u8]> + Send + Sync + 'static>(&self, buff: B) -> Result<usize>;
+    async fn send_all<B: Deref<Target = [u8]> + Send + Sync + 'static>(&self, buff: B) -> Result<()>;
     async fn flush(&mut self) -> Result<()>;
     async fn disconnect(&self) -> Result<()>;
 }
@@ -138,16 +139,16 @@ where
     T: AsyncRead + AsyncWrite + Send + 'static,
 {
     #[inline]
-    async fn send<'a>(&'a self, buff: &'a [u8]) -> Result<usize> {
+    async fn send<B: Deref<Target = [u8]> + Send + Sync + 'static>(&self, buff: B) -> Result<usize> {
         unsafe {
-            self.inner_call_ref(async move |inner| inner.get_mut().send(buff).await)
+            self.inner_call(async move |inner| inner.get_mut().send(buff).await)
                 .await
         }
     }
     #[inline]
-    async fn send_all<'a>(&'a self, buff: &'a [u8]) -> Result<()> {
+    async fn send_all<B: Deref<Target = [u8]> + Send + Sync + 'static>(&self, buff: B) -> Result<()>{
         unsafe {
-            self.inner_call_ref(async move |inner| inner.get_mut().send_all(buff).await)
+            self.inner_call(async move |inner| inner.get_mut().send_all(buff).await)
                 .await
         }
     }
