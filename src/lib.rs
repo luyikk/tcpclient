@@ -1,4 +1,3 @@
-#![feature(async_closure)]
 use anyhow::{bail, ensure, Result};
 use aqueue::Actor;
 use log::*;
@@ -142,19 +141,19 @@ where
 {
     #[inline]
     async fn send<B: Deref<Target = [u8]> + Send + Sync + 'static>(&self, buff: B) -> Result<usize> {
-        self.inner_call(async move |inner| inner.get_mut().send(&buff).await)
+        self.inner_call(|inner|  async move{inner.get_mut().send(&buff).await})
             .await
     }
     #[inline]
     async fn send_all<B: Deref<Target = [u8]> + Send + Sync + 'static>(&self, buff: B) -> Result<()> {
-        self.inner_call(async move |inner| inner.get_mut().send_all(&buff).await)
+        self.inner_call(|inner| async move{ inner.get_mut().send_all(&buff).await})
             .await
     }
     #[inline]
     async fn send_ref<'a>(&'a self, buff: &'a [u8]) -> Result<usize> {
         ensure!(!buff.is_empty(), "send buff is null");
         unsafe {
-            self.inner_call_ref(async move |inner| inner.get_mut().send(buff).await)
+            self.inner_call_ref(|inner| async move {inner.get_mut().send(buff).await})
                 .await
         }
     }
@@ -162,20 +161,20 @@ where
     async fn send_all_ref<'a>(&'a self, buff: &'a [u8]) -> Result<()> {
         ensure!(!buff.is_empty(), "send buff is null");
         unsafe {
-            self.inner_call_ref(async move |inner| inner.get_mut().send_all(buff).await)
+            self.inner_call_ref(|inner| async move { inner.get_mut().send_all(buff).await})
                 .await
         }
     }
 
     #[inline]
     async fn flush(&mut self) -> Result<()> {
-        self.inner_call(async move |inner| inner.get_mut().flush().await)
+        self.inner_call(|inner|async move { inner.get_mut().flush().await})
             .await
     }
 
     #[inline]
     async fn disconnect(&self) -> Result<()> {
-        self.inner_call(async move |inner| inner.get_mut().disconnect().await)
+        self.inner_call(|inner|  async move {inner.get_mut().disconnect().await})
             .await
     }
 }
