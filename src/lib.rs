@@ -97,7 +97,7 @@ where
         Ok(())
     }
     #[inline]
-    pub async fn send<'a>(&'a mut self, buff:  &'a [u8]) -> Result<usize> {
+    pub async fn send(&mut self, buff:  &[u8]) -> Result<usize> {
         if !self.disconnect {
             Ok(self.sender.write(buff).await?)
         } else {
@@ -106,7 +106,7 @@ where
     }
 
     #[inline]
-    async fn send_all<'a>(&'a mut self, buff: &'a [u8]) -> Result<()>{
+    async fn send_all(&mut self, buff: &[u8]) -> Result<()>{
         if !self.disconnect {
             Ok(self.sender.write_all(buff).await?)
         } else {
@@ -128,8 +128,8 @@ where
 pub trait SocketClientTrait {
     async fn send<B: Deref<Target = [u8]> + Send + Sync + 'static>(&self, buff: B) -> Result<usize>;
     async fn send_all<B: Deref<Target = [u8]> + Send + Sync + 'static>(&self, buff: B) -> Result<()>;
-    async fn send_ref<'a>(&'a self, buff: &'a [u8]) -> Result<usize>;
-    async fn send_all_ref<'a>(&'a self, buff: &'a [u8]) -> Result<()>;
+    async fn send_ref(&self, buff: &[u8]) -> Result<usize>;
+    async fn send_all_ref(&self, buff: &[u8]) -> Result<()>;
     async fn flush(&self) -> Result<()>;
     async fn disconnect(&self) -> Result<()>;
 }
@@ -150,20 +150,17 @@ where
             .await
     }
     #[inline]
-    async fn send_ref<'a>(&'a self, buff: &'a [u8]) -> Result<usize> {
-        ensure!(!buff.is_empty(), "send buff is null");
-        unsafe {
-            self.inner_call_ref(|inner| async move {inner.get_mut().send(buff).await})
-                .await
-        }
+    async fn send_ref(&self, buff: &[u8]) -> Result<usize> {
+        ensure!(!buff.is_empty(), "send buff is none");
+        self.inner_call(|inner| async move { inner.get_mut().send(buff).await })
+            .await
     }
+
     #[inline]
-    async fn send_all_ref<'a>(&'a self, buff: &'a [u8]) -> Result<()> {
-        ensure!(!buff.is_empty(), "send buff is null");
-        unsafe {
-            self.inner_call_ref(|inner| async move { inner.get_mut().send_all(buff).await})
-                .await
-        }
+    async fn send_all_ref(&self, buff: &[u8]) -> Result<()> {
+        ensure!(!buff.is_empty(), "send buff is none");
+        self.inner_call(|inner| async move { inner.get_mut().send_all(buff).await })
+            .await
     }
 
     #[inline]
