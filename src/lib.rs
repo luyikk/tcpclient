@@ -171,8 +171,7 @@ where
 
     #[inline]
     async fn disconnect(&self) -> Result<()> {
-        unsafe{
-            self.deref_inner().disconnect().await
-        }
+        self.inner_call(|inner|  async move {inner.get_mut().disconnect().await})
+            .await
     }
 }
