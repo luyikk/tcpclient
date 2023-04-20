@@ -108,7 +108,8 @@ where
     #[inline]
     async fn send_all(&mut self, buff: &[u8]) -> Result<()>{
         if !self.disconnect {
-            Ok(self.sender.write_all(buff).await?)
+            self.sender.write_all(buff).await?;
+            Ok(self.sender.flush().await?)
         } else {
             bail!("Send Error,Disconnect")
         }
