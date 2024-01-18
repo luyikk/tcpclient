@@ -1,7 +1,11 @@
 # Asynchronous tcpclient based on aqueue actor.
 
+* Version 2.+ Minimum supported Rust version: 1.75 or later
+
 ## DEMO URL:
 ## [demo url][https://github.com/luyikk/tcp_server/tree/master/examples]
+
+
 
 ## examples echo:
 ```rust

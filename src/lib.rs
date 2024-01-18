@@ -3,10 +3,10 @@ use aqueue::Actor;
 use log::*;
 use std::future::Future;
 use std::net::SocketAddr;
+use std::ops::Deref;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
 use tokio::net::{TcpStream, ToSocketAddrs};
-use std::ops::Deref;
 
 pub struct TcpClient<T> {
     disconnect: bool,
@@ -21,7 +21,9 @@ impl TcpClient<TcpStream> {
         A: Send + 'static,
     >(
         addr: T,
-        input: impl FnOnce(A, Arc<Actor<TcpClient<TcpStream>>>, ReadHalf<TcpStream>) -> F + Send + 'static,
+        input: impl FnOnce(A, Arc<Actor<TcpClient<TcpStream>>>, ReadHalf<TcpStream>) -> F
+            + Send
+            + 'static,
         token: A,
     ) -> Result<Arc<Actor<TcpClient<TcpStream>>>> {
         let stream = TcpStream::connect(addr).await?;
@@ -97,7 +99,7 @@ where
         Ok(())
     }
     #[inline]
-    pub async fn send(&mut self, buff:  &[u8]) -> Result<usize> {
+    pub async fn send(&mut self, buff: &[u8]) -> Result<usize> {
         if !self.disconnect {
             Ok(self.sender.write(buff).await?)
         } else {
@@ -106,7 +108,7 @@ where
     }
 
     #[inline]
-    async fn send_all(&mut self, buff: &[u8]) -> Result<()>{
+    async fn send_all(&mut self, buff: &[u8]) -> Result<()> {
         if !self.disconnect {
             self.sender.write_all(buff).await?;
             Ok(self.sender.flush().await?)
@@ -125,29 +127,39 @@ where
     }
 }
 
-#[async_trait::async_trait]
 pub trait SocketClientTrait {
-    async fn send<B: Deref<Target = [u8]> + Send + Sync + 'static>(&self, buff: B) -> Result<usize>;
-    async fn send_all<B: Deref<Target = [u8]> + Send + Sync + 'static>(&self, buff: B) -> Result<()>;
-    async fn send_ref(&self, buff: &[u8]) -> Result<usize>;
-    async fn send_all_ref(&self, buff: &[u8]) -> Result<()>;
-    async fn flush(&self) -> Result<()>;
-    async fn disconnect(&self) -> Result<()>;
+    fn send<B: Deref<Target = [u8]> + Send + Sync + 'static>(
+        &self,
+        buff: B,
+    ) -> impl Future<Output = Result<usize>>;
+    fn send_all<B: Deref<Target = [u8]> + Send + Sync + 'static>(
+        &self,
+        buff: B,
+    ) -> impl Future<Output = Result<()>>;
+    fn send_ref(&self, buff: &[u8]) -> impl Future<Output = Result<usize>>;
+    fn send_all_ref(&self, buff: &[u8]) -> impl Future<Output = Result<()>>;
+    fn flush(&self) -> impl Future<Output = Result<()>>;
+    fn disconnect(&self) -> impl Future<Output = Result<()>>;
 }
 
-#[async_trait::async_trait]
 impl<T> SocketClientTrait for Actor<TcpClient<T>>
 where
     T: AsyncRead + AsyncWrite + Send + 'static,
 {
     #[inline]
-    async fn send<B: Deref<Target = [u8]> + Send + Sync + 'static>(&self, buff: B) -> Result<usize> {
-        self.inner_call(|inner|  async move{inner.get_mut().send(&buff).await})
+    async fn send<B: Deref<Target = [u8]> + Send + Sync + 'static>(
+        &self,
+        buff: B,
+    ) -> Result<usize> {
+        self.inner_call(|inner| async move { inner.get_mut().send(&buff).await })
             .await
     }
     #[inline]
-    async fn send_all<B: Deref<Target = [u8]> + Send + Sync + 'static>(&self, buff: B) -> Result<()> {
-        self.inner_call(|inner| async move{ inner.get_mut().send_all(&buff).await})
+    async fn send_all<B: Deref<Target = [u8]> + Send + Sync + 'static>(
+        &self,
+        buff: B,
+    ) -> Result<()> {
+        self.inner_call(|inner| async move { inner.get_mut().send_all(&buff).await })
             .await
     }
     #[inline]
@@ -166,13 +178,13 @@ where
 
     #[inline]
     async fn flush(&self) -> Result<()> {
-        self.inner_call(|inner|async move { inner.get_mut().flush().await})
+        self.inner_call(|inner| async move { inner.get_mut().flush().await })
             .await
     }
 
     #[inline]
     async fn disconnect(&self) -> Result<()> {
-        self.inner_call(|inner|  async move {inner.get_mut().disconnect().await})
+        self.inner_call(|inner| async move { inner.get_mut().disconnect().await })
             .await
     }
 }
