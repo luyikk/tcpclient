@@ -36,7 +36,7 @@ async fn main()->Result<(),Box<dyn Error>> {
         }, ()).await?;
 
     // connect ok send buff to target server
-    client.send(b"1234567").await?;
+    client.send_all_ref(b"1234567").await?;
 
     // test disconnect readline 
     let mut str = "".into();
