@@ -1,5 +1,6 @@
-use anyhow::{bail, ensure, Result};
+pub mod error;
 use aqueue::Actor;
+use error::Result;
 use log::*;
 use std::future::Future;
 use std::net::SocketAddr;
@@ -17,7 +18,7 @@ impl TcpClient<TcpStream> {
     #[inline]
     pub async fn connect<
         T: ToSocketAddrs,
-        F: Future<Output = Result<bool>> + Send + 'static,
+        F: Future<Output = anyhow::Result<bool>> + Send + 'static,
         A: Send + 'static,
     >(
         addr: T,
@@ -39,8 +40,8 @@ where
     #[inline]
     pub async fn connect_stream_type<
         H: ToSocketAddrs,
-        F: Future<Output = Result<bool>> + Send + 'static,
-        S: Future<Output = Result<T>> + Send + 'static,
+        F: Future<Output = anyhow::Result<bool>> + Send + 'static,
+        S: Future<Output = anyhow::Result<T>> + Send + 'static,
         A: Send + 'static,
     >(
         addr: H,
@@ -55,7 +56,7 @@ where
     }
 
     #[inline]
-    fn init<F: Future<Output = Result<bool>> + Send + 'static, A: Send + 'static>(
+    fn init<F: Future<Output = anyhow::Result<bool>> + Send + 'static, A: Send + 'static>(
         f: impl FnOnce(A, Arc<Actor<TcpClient<T>>>, ReadHalf<T>) -> F + Send + 'static,
         token: A,
         stream: T,
@@ -69,13 +70,10 @@ where
         let read_client = client.clone();
         tokio::spawn(async move {
             let disconnect_client = read_client.clone();
-            let need_disconnect = match f(token, read_client, reader).await {
-                Ok(disconnect) => disconnect,
-                Err(err) => {
-                    error!("reader error:{}", err);
-                    true
-                }
-            };
+            let need_disconnect = f(token, read_client, reader).await.unwrap_or_else(|err| {
+                error!("reader error:{}", err);
+                true
+            });
 
             if need_disconnect {
                 if let Err(er) = disconnect_client.disconnect().await {
@@ -103,7 +101,7 @@ where
         if !self.disconnect {
             Ok(self.sender.write(buff).await?)
         } else {
-            bail!("Send Error,Disconnect")
+            Err(error::Error::SendError("Disconnect".to_string()))
         }
     }
 
@@ -113,7 +111,7 @@ where
             self.sender.write_all(buff).await?;
             Ok(self.sender.flush().await?)
         } else {
-            bail!("Send Error,Disconnect")
+            Err(error::Error::SendError("Disconnect".to_string()))
         }
     }
 
@@ -122,7 +120,7 @@ where
         if !self.disconnect {
             Ok(self.sender.flush().await?)
         } else {
-            bail!("Send Error,Disconnect")
+            Err(error::Error::SendError("Disconnect".to_string()))
         }
     }
 }
@@ -164,14 +162,18 @@ where
     }
     #[inline]
     async fn send_ref(&self, buff: &[u8]) -> Result<usize> {
-        ensure!(!buff.is_empty(), "send buff is none");
+        if buff.is_empty() {
+            return Err(error::Error::SendError("send buff is none".to_string()));
+        }
         self.inner_call(|inner| async move { inner.get_mut().send(buff).await })
             .await
     }
 
     #[inline]
     async fn send_all_ref(&self, buff: &[u8]) -> Result<()> {
-        ensure!(!buff.is_empty(), "send buff is none");
+        if buff.is_empty() {
+            return Err(error::Error::SendError("send buff is none".to_string()));
+        }
         self.inner_call(|inner| async move { inner.get_mut().send_all(buff).await })
             .await
     }
